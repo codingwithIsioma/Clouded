@@ -1,0 +1,11 @@
+{
+  "name": "Clouded",
+  "short_name": "Clouded",
+  "description": "Student Command Center",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f0f0e",
+  "theme_color": "#0f0f0e",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

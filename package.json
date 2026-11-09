@@ -1,0 +1,29 @@
+{
+  "name": "clouded",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Student Command Center — a personal study app for cloud engineering students",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide-react": "^1.70.0",
+    "pdfjs-dist": "^6.5.438",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
