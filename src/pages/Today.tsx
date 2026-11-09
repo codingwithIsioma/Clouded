@@ -210,7 +210,7 @@ export default function Today() {
             </div>
           </div>
 
-          <div className="section row between small">
+          <div className="section row between small desktop-only">
             {backupOverdue(state) ? (
               <span className="muted">
                 {state.lastBackup ? `Last backup ${timeAgo(state.lastBackup)}.` : "You haven't backed up yet."} Your data only lives in this browser.

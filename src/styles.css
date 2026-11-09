@@ -235,5 +235,11 @@ textarea.mono, input.mono { font-family: var(--mono); font-size: 13px; }
   .tiles, .grid2 { grid-template-columns: 1fr; }
   .grades { grid-template-columns: 1fr 1fr; }
   .hide-sm { display: none; }
+  .desktop-only { display: none !important; }
   .toasts { left: 16px; right: 16px; bottom: 84px; }
+}
+
+/* Phones and tablets zoom the page when a focused field is under 16px. */
+@media (max-width: 760px), (pointer: coarse) {
+  input, textarea, select { font-size: 1rem !important; }
 }
