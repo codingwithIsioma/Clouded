@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Deadline } from "./types";
-import { BookMarked, Brain, Bug, CalendarClock, Cloud, HardDrive, Home, SquareTerminal } from "lucide-react";
+import { BookMarked, Brain, Bug, CalendarClock, Cloud, HardDrive, Home, MoreHorizontal, SquareTerminal } from "lucide-react";
 import { useStore } from "./store";
 import { Toasts, toast, useRoute } from "./ui";
 import { agenda, autoReschedule, bucketOf } from "./lib/dates";
@@ -23,9 +23,15 @@ const NAV = [
   { id: "cards", label: "CommandCards", short: "Cards", icon: SquareTerminal },
 ];
 
+// The phone's bottom bar keeps the daily four; the rest live under "More".
+const TABS = ["today", "deadlines", "cards", "errors"];
+const MORE = [...NAV.filter((n) => !TABS.includes(n.id)), { id: "data", label: "Backup & data", icon: HardDrive }];
+
 export default function App() {
   const { state, update, ready } = useStore();
   const route = useRoute();
+  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => setMoreOpen(false), [route.page]);
 
   const latest = useRef(state);
   latest.current = state;
@@ -97,13 +103,32 @@ export default function App() {
       </aside>
       <main>{ready ? <Page params={route.params} /> : <div className="empty">Loading…</div>}</main>
       <nav className="mobile-nav">
-        {NAV.map((n) => (
+        {TABS.map((id) => NAV.find((n) => n.id === id)!).map((n) => (
           <a key={n.id} href={`#/${n.id}`} className={page === n.id ? "on" : ""}>
-            <n.icon size={19} />
+            <span className="tab-icon">
+              <n.icon size={19} />
+              {!!counts[n.id] && <span className="dot" />}
+            </span>
             {n.short ?? n.label}
           </a>
         ))}
+        <button className={MORE.some((n) => n.id === page) || moreOpen ? "on" : ""} onClick={() => setMoreOpen((o) => !o)}>
+          <MoreHorizontal size={19} />
+          More
+        </button>
       </nav>
+      {moreOpen && (
+        <div className="sheet-backdrop" onClick={() => setMoreOpen(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            {MORE.map((n) => (
+              <a key={n.id} href={`#/${n.id}`} className={`nav-item ${page === n.id ? "on" : ""}`} onClick={() => setMoreOpen(false)}>
+                <n.icon size={18} />
+                {n.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
       <Toasts />
     </div>
   );

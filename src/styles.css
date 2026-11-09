@@ -217,8 +217,20 @@ textarea.mono, input.mono { font-family: var(--mono); font-size: 13px; }
     display: flex; position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--line);
     justify-content: space-around; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); z-index: 40;
   }
-  .mobile-nav a { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10.5px; color: var(--muted); text-decoration: none; padding: 4px 6px; }
-  .mobile-nav a.on { color: var(--text); }
+  .mobile-nav a, .mobile-nav button {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; font: inherit; font-size: 11px; font-weight: 500;
+    color: var(--muted); text-decoration: none; padding: 5px 0; background: none; border: 0; cursor: pointer;
+  }
+  .mobile-nav a.on, .mobile-nav button.on { color: var(--text); }
+  .tab-icon { position: relative; display: grid; }
+  .tab-icon .dot { position: absolute; top: -1px; right: -4px; width: 6px; height: 6px; border-radius: 50%; background: var(--text); }
+  .sheet-backdrop { position: fixed; inset: 0; z-index: 39; background: rgba(0, 0, 0, 0.25); }
+  .sheet {
+    position: absolute; left: 8px; right: 8px; bottom: calc(66px + env(safe-area-inset-bottom)); padding: 6px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px; display: flex; flex-direction: column; gap: 2px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  }
+  .sheet .nav-item { padding: 11px 12px; font-size: 15px; }
   .kpis { grid-template-columns: 1fr 1fr; }
   .tiles, .grid2 { grid-template-columns: 1fr; }
   .grades { grid-template-columns: 1fr 1fr; }
