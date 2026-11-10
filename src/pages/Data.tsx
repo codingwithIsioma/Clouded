@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Download, Upload } from "lucide-react";
+import { Download, LogOut, RefreshCw, Upload } from "lucide-react";
 import { useStore } from "../store";
 import type { State } from "../types";
-import { allFiles, clearFiles, putFile, storageUsage } from "../lib/db";
+import { allFiles, clearFiles, putFile, storageUsage, wipeDevice } from "../lib/db";
+import { supabase } from "../lib/supabase";
+import { useUser } from "../auth";
+import { SyncStatus, useSync } from "../sync";
 import { dayKey, timeAgo } from "../lib/dates";
 import { PageHead, toast } from "../ui";
 
@@ -41,6 +44,23 @@ export default function Data() {
   const [usage, setUsage] = useState<number | null>(null);
   const [busy, setBusy] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const user = useUser();
+  const { syncNow, engine, status } = useSync();
+
+  const signOut = async () => {
+    setBusy("Sending your last changes…");
+    await syncNow();
+    setBusy("");
+    const left = engine?.pending ?? 0;
+    const msg = left
+      ? `${left} change${left === 1 ? " hasn't" : "s haven't"} reached your account yet${status.state === "offline" ? " because you're offline" : ""}. Signing out now loses ${left === 1 ? "it" : "them"}.\n\nSign out anyway?`
+      : "Sign out and remove Clouded's data from this device?\n\nEverything stays in your account and comes back when you sign in again.";
+    if (!confirm(msg)) return;
+    engine?.stop();
+    await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    await wipeDevice();
+    location.reload();
+  };
 
   useEffect(() => void storageUsage().then(setUsage), []);
 
@@ -96,14 +116,33 @@ export default function Data() {
 
   return (
     <>
-      <PageHead title="Your data" sub="Clouded saves everything in this browser, on this device. Nothing is sent anywhere." />
+      <PageHead title="Your data" sub="Clouded keeps a copy on this device and syncs it to your account, so your phone and laptop stay in step." />
 
       <div className="stack">
         <div className="card stack">
+          <h3>Account</h3>
+          <div className="row between" style={{ flexWrap: "wrap", gap: 10 }}>
+            <div className="stack" style={{ gap: 2 }}>
+              <span className="small">{user.email ?? "Signed in"}</span>
+              <SyncStatus />
+            </div>
+            <div className="row" style={{ gap: 8 }}>
+              <button onClick={() => syncNow()} disabled={!!busy || status.state === "syncing"}>
+                <RefreshCw size={14} /> Sync now
+              </button>
+              <button onClick={signOut} disabled={!!busy}>
+                <LogOut size={14} /> Sign out
+              </button>
+            </div>
+          </div>
+          {status.state === "error" && status.message && <p className="small faint">Last error: {status.message}</p>}
+        </div>
+
+        <div className="card stack">
           <h3>Back up</h3>
           <p className="muted small">
-            Downloads one file with all your deadlines, errors, topics, resources, PDFs and card progress. Keep it somewhere safe, like Google Drive. If this browser's data is cleared,
-            the backup is the only copy.
+            Downloads one file with all your deadlines, errors, topics, resources, PDFs and card progress. Your account already keeps a copy, so this is an extra safety net you can keep
+            somewhere like Google Drive.
           </p>
           <div className="row between">
             <span className="small faint">{state.lastBackup ? `Last backup ${timeAgo(state.lastBackup)}` : "No backup yet"}</span>
@@ -114,9 +153,9 @@ export default function Data() {
         </div>
 
         <div className="card stack">
-          <h3>Restore or move to another device</h3>
+          <h3>Restore from a backup</h3>
           <p className="muted small">
-            To move from your laptop to your phone: export a backup on the laptop, get the file onto your phone, open Clouded there and import it. Importing replaces what's on that device.
+            Importing replaces what's on this device with the backup, and the changes sync to your account like any other edit.
           </p>
           <div className="row between">
             <span className="small faint">{busy}</span>
@@ -129,7 +168,7 @@ export default function Data() {
 
         <p className="small faint">
           {usage !== null && `Using about ${fmtBytes(usage)} of browser storage. `}
-          Clearing this site's data in your browser settings deletes everything here.
+          Clearing this site's data in your browser only removes this device's copy; sign in again to get it back.
         </p>
       </div>
     </>

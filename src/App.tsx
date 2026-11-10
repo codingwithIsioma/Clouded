@@ -13,6 +13,7 @@ import Explain from "./pages/Explain";
 import Vault from "./pages/Vault";
 import Cards from "./pages/Cards";
 import Data from "./pages/Data";
+import { SyncStatus } from "./sync";
 
 const NAV = [
   { id: "today", label: "Today", icon: Home },
@@ -96,7 +97,10 @@ export default function App() {
             {!!counts[n.id] && <span className="count">{counts[n.id]}</span>}
           </a>
         ))}
-        <a href="#/data" className={`nav-item ${page === "data" ? "on" : ""}`} style={{ marginTop: "auto" }}>
+        <a href="#/data" className="side-sync" style={{ marginTop: "auto" }}>
+          <SyncStatus />
+        </a>
+        <a href="#/data" className={`nav-item ${page === "data" ? "on" : ""}`}>
           <HardDrive size={16} />
           Backup &amp; data
         </a>
@@ -120,6 +124,7 @@ export default function App() {
       {moreOpen && (
         <div className="sheet-backdrop" onClick={() => setMoreOpen(false)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <SyncStatus className="sheet-sync" />
             {MORE.map((n) => (
               <a key={n.id} href={`#/${n.id}`} className={`nav-item ${page === n.id ? "on" : ""}`} onClick={() => setMoreOpen(false)}>
                 <n.icon size={18} />

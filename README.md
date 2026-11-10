@@ -1,6 +1,6 @@
 # Clouded — Student Command Center
 
-A personal study app for cloud engineering students. It runs entirely in your browser: there's no server, no account and no paid services. It's hosted free on GitHub Pages.
+A personal study app for cloud engineering students. It runs in your browser, hosted free on GitHub Pages, and syncs between your devices through a free Supabase project. There's no server to run and nothing to pay for.
 
 - **Today:** what's due today, today's cards and challenge, one topic to review, one unread resource, and search across everything (press `/`).
 - **Deadlines:**
@@ -20,13 +20,23 @@ A personal study app for cloud engineering students. It runs entirely in your br
 
 ## Your data
 
-Everything is saved in your browser's built-in storage (IndexedDB) on the device you're using. Nothing is uploaded anywhere.
+- **Sign in once per device** with the email and password of the one user in Supabase. New sign-ups are switched off, so nobody else can create an account.
+- **Synced item by item.** Each deadline, error, topic, resource, card's progress and day's log syncs on its own. The newest edit wins, so changes on your phone and laptop merge instead of overwriting each other. PDFs sync through a private storage folder.
+- **Works offline.** Each device keeps a copy in IndexedDB. Changes made offline sync when you're back online. The sidebar (or **More** on a phone) shows the sync status.
+- **Private.** The repo only contains the public Supabase URL and publishable key. Row-level security in [`supabase/schema.sql`](supabase/schema.sql) means only your signed-in account can read or write your data.
+- **Backups.** **Backup & data → Export backup** still downloads everything as one file, as an extra safety net.
 
-- **Private by design.** The site is public, but each visitor gets their own empty copy in their own browser. Nobody can see your data, even if they open the same link.
-- **Each device has its own data.** Your phone and laptop don't sync. To move data, go to **Backup & data → Export backup** on one device, then **Import backup** on the other.
-- **Back up now and then.** Clearing your browser's site data deletes everything, so keep the backup file somewhere safe, like Google Drive. The Today page reminds you if it's been more than two weeks.
+Free Supabase projects pause after about a week with no activity. If that happens, open the project in the Supabase dashboard and click **Restore**. Nothing is lost.
 
 Reminders show as browser notifications while Clouded is open in a tab.
+
+### Setting up Supabase (once)
+
+1. Create a free project at supabase.com.
+2. In **SQL Editor**, run [`supabase/schema.sql`](supabase/schema.sql).
+3. In **Authentication → Users**, add yourself with **Auto Confirm User** ticked.
+4. Turn off **Allow new users to sign up** under **Authentication → Sign In / Providers**.
+5. Put the project URL and publishable key in `src/lib/supabase.ts`.
 
 ## Run it on your computer
 
@@ -49,8 +59,8 @@ Open http://localhost:5173.
 
 Every push to `main` redeploys automatically.
 
-The repository only contains code. There are no passwords, keys or personal data in it.
+The repository contains no passwords, secret keys or personal data.
 
 ## Stack
 
-React + TypeScript, built with Vite. pdf.js reads assignment PDFs in the browser, and IndexedDB stores your data.
+React + TypeScript, built with Vite. pdf.js reads assignment PDFs in the browser. IndexedDB keeps the local copy, and Supabase (Postgres, Auth and Storage) syncs it.
