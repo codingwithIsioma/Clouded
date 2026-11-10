@@ -53,8 +53,21 @@ export type ErrorEntry = {
 };
 
 export type Confidence = "shaky" | "getting" | "locked";
+/** AI feedback on an explanation, kept with it. */
+export type AIFeedback = {
+  summary: string;
+  strengths: string[];
+  gaps: string[];
+  misconceptions: string[];
+  question: string;
+  confidence?: Confidence;
+  model: string;
+};
 /** Self-check after an explanation: ids of the checklist items you covered. */
-export type Explanation = { id: ID; text: string; at: string; checks?: string[] };
+export type Explanation = { id: ID; text: string; at: string; checks?: string[]; feedback?: AIFeedback };
+
+/** OpenRouter key and model; syncs to your account so you enter it once. */
+export type AISettings = { key: string; model: string };
 export type Topic = {
   id: ID;
   name: string;
@@ -95,6 +108,7 @@ export type State = {
   cardTopics: string[]; // topics enabled for daily cards
   firedReminders: string[];
   lastBackup?: string;
+  ai?: AISettings;
 };
 
 export const emptyState = (): State => ({

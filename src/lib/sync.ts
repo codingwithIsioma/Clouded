@@ -75,6 +75,7 @@ export function flatten(s: State): Map<string, unknown> {
   for (const [id, c] of Object.entries(s.cards)) m.set(key("card", id), c);
   for (const [id, d] of Object.entries(s.days)) m.set(key("day", id), d);
   m.set(key("setting", "cardTopics"), s.cardTopics);
+  m.set(key("setting", "ai"), s.ai ?? null);
   return m;
 }
 
@@ -97,6 +98,9 @@ export function applyRows(s: State, rows: Row[]) {
       else map[r.id] = r.data;
     } else if (r.kind === "setting" && r.id === "cardTopics" && !r.deleted && Array.isArray(r.data)) {
       s.cardTopics = r.data as string[];
+    } else if (r.kind === "setting" && r.id === "ai") {
+      if (r.deleted || !r.data) delete s.ai;
+      else s.ai = r.data as State["ai"];
     }
   }
 }
@@ -184,6 +188,11 @@ export class SyncEngine {
       if (pending !== undefined) {
         if (pending === h) delete this.meta.incoming[k];
         continue; // the app hasn't shown the pulled version yet
+      }
+      if (!this.meta.known[k] && h === "null") {
+        // An empty setting this device has never seen isn't an edit; let any real value from the account win.
+        this.meta.known[k] = { h, t: new Date(0).toISOString() };
+        continue;
       }
       if (this.meta.known[k]?.h !== h) {
         this.meta.known[k] = { h, t };

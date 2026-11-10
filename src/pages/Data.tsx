@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Download, LogOut, RefreshCw, Upload } from "lucide-react";
+import { Download, ExternalLink, LogOut, RefreshCw, Sparkles, Upload } from "lucide-react";
 import { useStore } from "../store";
 import type { State } from "../types";
 import { allFiles, clearFiles, putFile, storageUsage, wipeDevice } from "../lib/db";
 import { supabase } from "../lib/supabase";
 import { useUser } from "../auth";
 import { SyncStatus, useSync } from "../sync";
+import { DEFAULT_AI, FREE_ROUTER, checkKey, listFreeModels, type FreeModel } from "../lib/ai";
 import { dayKey, timeAgo } from "../lib/dates";
 import { PageHead, toast } from "../ui";
 
@@ -116,7 +117,7 @@ export default function Data() {
 
   return (
     <>
-      <PageHead title="Your data" sub="Clouded keeps a copy on this device and syncs it to your account, so your phone and laptop stay in step." />
+      <PageHead title="Settings" sub="Your account, AI and backups. Clouded keeps a copy on this device and syncs it to your account." />
 
       <div className="stack">
         <div className="card stack">
@@ -137,6 +138,8 @@ export default function Data() {
           </div>
           {status.state === "error" && status.message && <p className="small faint">Last error: {status.message}</p>}
         </div>
+
+        <AISection />
 
         <div className="card stack">
           <h3>Back up</h3>
@@ -172,5 +175,117 @@ export default function Data() {
         </p>
       </div>
     </>
+  );
+}
+
+function AISection() {
+  const { state, update } = useStore();
+  const ai = state.ai;
+  const [key, setKey] = useState("");
+  const [models, setModels] = useState<FreeModel[] | null>(null);
+  const [modelsError, setModelsError] = useState("");
+  const [check, setCheck] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!ai) return;
+    listFreeModels()
+      .then(setModels)
+      .catch((e) => setModelsError((e as Error).message));
+  }, [!!ai]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const test = async (k: string) => {
+    setBusy(true);
+    setCheck(null);
+    try {
+      const info = await checkKey(k);
+      const usage = info.freeLimit != null ? ` · ${info.freeUsed ?? 0} of ${info.freeLimit} free requests used today` : "";
+      setCheck({ ok: true, text: `Key works${usage}` });
+      return true;
+    } catch (e) {
+      setCheck({ ok: false, text: (e as Error).message });
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const save = async () => {
+    const k = key.trim();
+    if (!(await test(k))) return;
+    update((s) => void (s.ai = { ...DEFAULT_AI, ...s.ai, key: k }));
+    setKey("");
+    toast("AI is on", "Plan an assignment or check an explanation to try it.");
+  };
+
+  const remove = () => {
+    if (!confirm("Remove your OpenRouter key? AI features switch off on all your devices; the offline versions keep working.")) return;
+    update((s) => void delete s.ai);
+    setCheck(null);
+  };
+
+  const chosen = ai?.model ?? FREE_ROUTER;
+  const list = models && !models.some((m) => m.id === chosen) ? [{ id: chosen, name: `${chosen} (no longer listed as free)`, context: 0 }, ...models] : models;
+
+  return (
+    <div className="card stack">
+      <h3 className="row" style={{ gap: 6 }}>
+        <Sparkles size={15} /> AI
+      </h3>
+      <p className="muted small">
+        Uses OpenRouter's free models to plan assignments from a brief and give feedback on your explanations. Free models allow about 50 requests a day. Your key syncs to
+        your account, so you only enter it once. Some free providers keep prompts, so don't paste anything personal.
+      </p>
+      {!ai ? (
+        <>
+          <ol className="small muted" style={{ margin: 0, paddingLeft: 18 }}>
+            <li>
+              Sign up at{" "}
+              <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer">
+                openrouter.ai/keys <ExternalLink size={11} />
+              </a>{" "}
+              (free, no card needed).
+            </li>
+            <li>Create a key and paste it here.</li>
+          </ol>
+          <div className="row" style={{ flexWrap: "nowrap" }}>
+            <input type="password" autoComplete="off" spellCheck={false} placeholder="sk-or-v1-…" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === "Enter" && key.trim() && save()} />
+            <button className="primary" disabled={!key.trim() || busy} onClick={save}>
+              {busy ? "Checking…" : "Save"}
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <label className="field">
+            <span>Model</span>
+            <select value={chosen} onChange={(e) => update((s) => void (s.ai = { ...s.ai!, model: e.target.value }))}>
+              {(list ?? [{ id: chosen, name: chosen === FREE_ROUTER ? "Any free model (picked automatically)" : chosen, context: 0 }]).map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            <small>
+              {modelsError
+                ? `Couldn't load the model list: ${modelsError}`
+                : "\u201cAny free model\u201d is the most reliable. If a model you pick is busy, Clouded falls back to it automatically."}
+            </small>
+          </label>
+          <div className="row between">
+            <span className="small faint">Key ending …{ai.key.slice(-4)}</span>
+            <div className="row" style={{ gap: 8 }}>
+              <button onClick={() => test(ai.key)} disabled={busy}>
+                {busy ? "Checking…" : "Test key"}
+              </button>
+              <button className="ghost danger" onClick={remove}>
+                Remove
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+      {check && <p className="small" style={{ color: check.ok ? "var(--muted)" : "var(--red)" }}>{check.text}</p>}
+    </div>
   );
 }

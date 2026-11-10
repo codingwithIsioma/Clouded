@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { ListChecks, Mic, MicOff, Plus, Trash2 } from "lucide-react";
+import { ListChecks, Mic, MicOff, Plus, Sparkles, Trash2 } from "lucide-react";
 import { uid, useStore } from "../store";
-import type { Confidence, Explanation, ID, State, Topic } from "../types";
+import type { AIFeedback, Confidence, Explanation, ID, State, Topic } from "../types";
+import { aiFeedback } from "../lib/ai";
 import { ResLink } from "./Vault";
 import { DAY, fmtDate, timeAgo } from "../lib/dates";
 import { conceptMatches } from "../lib/text";
@@ -129,6 +130,9 @@ function TopicView({ topic, onBack }: { topic: Topic; onBack: () => void }) {
   const [text, setText] = useState("");
   const [checking, setChecking] = useState(false);
   const [ticks, setTicks] = useState<string[]>([]);
+  const [feedback, setFeedback] = useState<AIFeedback | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState("");
   const [recording, setRecording] = useState(false);
   const rec = useRef<SR | null>(null);
   const base = useRef("");
@@ -169,8 +173,23 @@ function TopicView({ topic, onBack }: { topic: Topic; onBack: () => void }) {
     setRecording(true);
   };
 
+  const askAI = async () => {
+    if (!state.ai) return;
+    setAiBusy(true);
+    setAiError("");
+    try {
+      const { covered, ...fb } = await aiFeedback(state.ai, topic.name, text.trim());
+      setFeedback(fb);
+      setTicks(covered);
+    } catch (e) {
+      setAiError((e as Error).message);
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
   const save = () => {
-    const ex: Explanation = { id: uid(), text: text.trim(), at: new Date().toISOString(), checks: ticks };
+    const ex: Explanation = { id: uid(), text: text.trim(), at: new Date().toISOString(), checks: ticks, ...(feedback ? { feedback } : {}) };
     const suggested = suggestFrom(ticks.length);
     edit((t) => {
       t.explanations.unshift(ex);
@@ -180,6 +199,8 @@ function TopicView({ topic, onBack }: { topic: Topic; onBack: () => void }) {
     toast(`Saved — marked “${CONF.find((c) => c.value === suggested)!.label}”`, `You covered ${ticks.length} of ${CHECKS.length}. Change the rating anytime.`);
     setText("");
     setTicks([]);
+    setFeedback(null);
+    setAiError("");
     setChecking(false);
   };
 
@@ -195,13 +216,14 @@ function TopicView({ topic, onBack }: { topic: Topic; onBack: () => void }) {
         <Segmented value={topic.confidence} onChange={(c) => edit((t) => void ((t.confidence = c), (t.lastReviewed ??= new Date().toISOString())))} options={CONF} />
       </PageHead>
 
-      {!checking && missed.length > 0 && (
+      {!checking && (missed.length > 0 || !!latest?.feedback?.gaps.length || !!latest?.feedback?.question) && (
         <div className="banner" style={{ flexDirection: "column", gap: 4, marginBottom: 12 }}>
-          <b style={{ fontWeight: 550 }}>Last time you didn't cover:</b>
+          <b style={{ fontWeight: 550 }}>Last time{latest?.feedback ? ", to work on:" : " you didn't cover:"}</b>
           <ul style={{ margin: 0, paddingLeft: 18 }} className="small">
-            {missed.map((c) => (
-              <li key={c.id}>{c.prompt}</li>
+            {(latest?.feedback ? [...latest.feedback.misconceptions, ...latest.feedback.gaps] : missed.map((c) => c.prompt)).map((t, i) => (
+              <li key={i}>{t}</li>
             ))}
+            {latest?.feedback?.question && <li>{latest.feedback.question}</li>}
           </ul>
         </div>
       )}
@@ -230,7 +252,19 @@ function TopicView({ topic, onBack }: { topic: Topic; onBack: () => void }) {
           </div>
         ) : (
           <div className="stack" style={{ borderTop: "1px solid var(--line)", paddingTop: 14 }}>
-            <div className="small muted">Read your explanation back. Tick only what you actually covered.</div>
+            {state.ai && !feedback && (
+              <div className="row between">
+                <span className="small muted">{aiBusy ? "Reading your explanation… this can take up to a minute" : "Get hints on what's missing or wrong. It won't give you the answer."}</span>
+                <button onClick={askAI} disabled={aiBusy}>
+                  <Sparkles size={14} /> {aiBusy ? "Working…" : "Get AI feedback"}
+                </button>
+              </div>
+            )}
+            {aiError && <div className="banner warn small">{aiError}</div>}
+            {feedback && <FeedbackView fb={feedback} />}
+            <div className="small muted">
+              {feedback ? "AI ticked what it thinks you covered. Adjust anything you disagree with." : "Read your explanation back. Tick only what you actually covered."}
+            </div>
             {CHECKS.map((c) => (
               <label key={c.id} className="row" style={{ flexWrap: "nowrap", alignItems: "flex-start", cursor: "pointer" }}>
                 <input type="checkbox" style={{ marginTop: 4 }} checked={ticks.includes(c.id)} onChange={() => setTicks(ticks.includes(c.id) ? ticks.filter((x) => x !== c.id) : [...ticks, c.id])} />
@@ -238,7 +272,7 @@ function TopicView({ topic, onBack }: { topic: Topic; onBack: () => void }) {
               </label>
             ))}
             <div className="row between">
-              <button className="ghost" onClick={() => setChecking(false)}>
+              <button className="ghost" onClick={() => (setChecking(false), setFeedback(null), setAiError(""))}>
                 Keep writing
               </button>
               <button className="primary" onClick={save}>
@@ -277,6 +311,11 @@ function TopicView({ topic, onBack }: { topic: Topic; onBack: () => void }) {
                   )}
                 </summary>
                 <p style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{ex.text}</p>
+                {ex.feedback && (
+                  <div style={{ marginTop: 10 }}>
+                    <FeedbackView fb={ex.feedback} />
+                  </div>
+                )}
               </details>
             ))}
           </div>
@@ -297,5 +336,34 @@ function TopicView({ topic, onBack }: { topic: Topic; onBack: () => void }) {
         </button>
       </div>
     </>
+  );
+}
+
+function FeedbackView({ fb }: { fb: AIFeedback }) {
+  const part = (title: string, items: string[]) =>
+    items.length > 0 && (
+      <div>
+        <div className="small" style={{ fontWeight: 550, marginBottom: 2 }}>
+          {title}
+        </div>
+        <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>
+          {items.map((t, i) => (
+            <li key={i}>{t}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  return (
+    <div className="banner" style={{ flexDirection: "column", gap: 8 }}>
+      <div className="row" style={{ gap: 6 }}>
+        <Sparkles size={13} />
+        <span className="small">{fb.summary || "AI feedback"}</span>
+      </div>
+      {part("What you got right", fb.strengths)}
+      {part("Not quite right", fb.misconceptions)}
+      {part("To think about", fb.gaps)}
+      {fb.question && part("Try answering", [fb.question])}
+      <span className="small faint">AI feedback can be wrong. Check anything surprising against your notes.</span>
+    </div>
   );
 }

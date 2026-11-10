@@ -253,3 +253,4 @@ textarea.mono, input.mono { font-family: var(--mono); font-size: 13px; }
 @media (max-width: 760px), (pointer: coarse) {
   input, textarea, select { font-size: 1rem !important; }
 }
+.signin-card button[type="submit"] { justify-content: center; padding-top: 8px; padding-bottom: 8px; }

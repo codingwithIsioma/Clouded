@@ -219,7 +219,7 @@ export default function Today() {
               <span className="faint">Saved in this browser.</span>
             )}
             <a href="#/data" className="btn sm">
-              Backup &amp; data
+              Back up
             </a>
           </div>
         </>

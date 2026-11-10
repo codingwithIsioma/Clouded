@@ -1,16 +1,17 @@
 import { useRef, useState } from "react";
-import { ListChecks, Plus, Upload, X } from "lucide-react";
+import { ListChecks, Plus, Sparkles, Upload, X } from "lucide-react";
 import { uid, useStore } from "../store";
 import type { Availability, Deadline } from "../types";
 import { planFromBrief, type Plan, type PlanStep } from "../lib/planner";
 import { pdfToText } from "../lib/pdf";
+import { aiPlan } from "../lib/ai";
 import { addDays, dayKey, fmtDate, fromDayKey, scheduleSteps } from "../lib/dates";
 import { Field, Modal, toLocalInput } from "../ui";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function BreakdownModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
-  const { update } = useStore();
+  const { state, update } = useStore();
   const [text, setText] = useState("");
   const [fileName, setFileName] = useState("");
   const [start, setStart] = useState(dayKey());
@@ -19,6 +20,7 @@ export default function BreakdownModal({ onClose, onCreated }: { onClose: () => 
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [byAI, setByAI] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const onFile = async (f: File | undefined) => {
@@ -39,7 +41,28 @@ export default function BreakdownModal({ onClose, onCreated }: { onClose: () => 
 
   const generate = () => {
     setError("");
+    setByAI(false);
     setPlan(planFromBrief(text));
+  };
+
+  const generateAI = async () => {
+    if (!state.ai) return;
+    setError("");
+    setBusy("Asking AI… this can take up to a minute");
+    const from = fromDayKey(start);
+    const to = new Date(due);
+    let workDays = 0;
+    for (let d = new Date(from); d <= to; d = new Date(d.getTime() + 86_400_000)) if (av.days.includes(d.getDay())) workDays++;
+    try {
+      setPlan(await aiPlan(state.ai, text, { start: from, due: to, hoursAvailable: workDays * av.hoursPerDay }));
+      setByAI(true);
+    } catch (e) {
+      setPlan(planFromBrief(text));
+      setByAI(false);
+      setError(`AI couldn't build the plan: ${(e as Error).message} This plan was built offline instead.`);
+    } finally {
+      setBusy("");
+    }
   };
 
   const editStep = (i: number, patch: Partial<PlanStep>) => plan && setPlan({ ...plan, steps: plan.steps.map((s, j) => (j === i ? { ...s, ...patch } : s)) });
@@ -115,20 +138,34 @@ export default function BreakdownModal({ onClose, onCreated }: { onClose: () => 
             </Field>
           </div>
           <p className="small faint">
-            Steps are built from the brief's own tasks and its must/should lines. You can edit, add or remove any step on the next screen.
+            {state.ai
+              ? "AI reads the brief and suggests steps, requirements and concepts, never solutions. You can edit, add or remove any step on the next screen."
+              : "Steps are built from the brief's own tasks and its must/should lines. You can edit, add or remove any step on the next screen. Add an OpenRouter key in Settings to plan with AI."}
           </p>
           {error && <div className="banner warn small">{error}</div>}
           <div className="row between">
             <span className="small muted">{busy}</span>
-            <button className="primary" disabled={!text.trim() || !!busy || new Date(due) <= fromDayKey(start)} onClick={generate}>
-              <ListChecks size={14} /> {busy || "Build plan"}
-            </button>
+            <div className="row" style={{ gap: 8 }}>
+              {state.ai && (
+                <button className="ghost" disabled={!text.trim() || !!busy || new Date(due) <= fromDayKey(start)} onClick={generate}>
+                  Without AI
+                </button>
+              )}
+              <button className="primary" disabled={!text.trim() || !!busy || new Date(due) <= fromDayKey(start)} onClick={state.ai ? generateAI : generate}>
+                {state.ai ? <Sparkles size={14} /> : <ListChecks size={14} />} {busy ? "Working…" : state.ai ? "Build plan with AI" : "Build plan"}
+              </button>
+            </div>
           </div>
         </>
       ) : (
         <>
           <input value={plan.title} onChange={(e) => setPlan({ ...plan, title: e.target.value })} style={{ fontSize: 16, fontWeight: 600 }} />
           {plan.summary && <p className="muted">{plan.summary}</p>}
+          {byAI && (
+            <p className="small faint row" style={{ gap: 5 }}>
+              <Sparkles size={12} /> Suggested by AI. Check it against the brief before you save.
+            </p>
+          )}
           {error && <div className="banner warn small">{error}</div>}
           {scheduled?.warning && <div className="banner warn small">{scheduled.warning}</div>}
           <div className="card flush list">

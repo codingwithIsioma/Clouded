@@ -18,6 +18,19 @@ A personal study app for cloud engineering students. It runs in your browser, ho
 - **Resource Vault:** links, videos and PDFs with tags, module, reading status, notes, and links to assignment steps or topics.
 - **CommandCards:** daily Linux, Docker, kubectl, Terraform and Git flashcards with spaced repetition, plus a daily challenge, a streak and per-topic progress.
 
+## AI (optional, free)
+
+Add an OpenRouter key under **Settings → AI** to turn on two extras:
+
+- **Plan with AI.** AI reads an assignment brief and suggests steps, requirements and concepts. It never gives solutions, and you can edit everything before saving.
+- **AI feedback** in Explain-It-Back. You get hints on what's missing or wrong, a follow-up question, and the self-check ticked for you to adjust.
+
+How it works:
+- It uses OpenRouter's free models: "Any free model" by default, or one you pick. Free models allow about 50 requests a day.
+- Calls go straight from your browser to OpenRouter.
+- The key syncs through your account, so you only enter it once.
+- Without a key, if you hit the limit, or if a model is busy, the offline planner and self-check take over.
+
 ## Your data
 
 - **Sign in once per device** with the email and password of the one user in Supabase. New sign-ups are switched off, so nobody else can create an account.

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Deadline } from "./types";
-import { BookMarked, Brain, Bug, CalendarClock, Cloud, HardDrive, Home, MoreHorizontal, SquareTerminal } from "lucide-react";
+import { BookMarked, Brain, Bug, CalendarClock, Cloud, Home, MoreHorizontal, Settings, SquareTerminal } from "lucide-react";
 import { useStore } from "./store";
 import { Toasts, toast, useRoute } from "./ui";
 import { agenda, autoReschedule, bucketOf } from "./lib/dates";
@@ -26,7 +26,7 @@ const NAV = [
 
 // The phone's bottom bar keeps the daily four; the rest live under "More".
 const TABS = ["today", "deadlines", "cards", "errors"];
-const MORE = [...NAV.filter((n) => !TABS.includes(n.id)), { id: "data", label: "Backup & data", icon: HardDrive }];
+const MORE = [...NAV.filter((n) => !TABS.includes(n.id)), { id: "data", label: "Settings", icon: Settings }];
 
 export default function App() {
   const { state, update, ready } = useStore();
@@ -101,8 +101,8 @@ export default function App() {
           <SyncStatus />
         </a>
         <a href="#/data" className={`nav-item ${page === "data" ? "on" : ""}`}>
-          <HardDrive size={16} />
-          Backup &amp; data
+          <Settings size={16} />
+          Settings
         </a>
       </aside>
       <main>{ready ? <Page params={route.params} /> : <div className="empty">Loading…</div>}</main>
