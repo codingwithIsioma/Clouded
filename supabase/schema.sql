@@ -78,3 +78,18 @@ create policy "files: owner edits" on storage.objects for update to authenticate
   with check (bucket_id = 'files' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy "files: owner deletes" on storage.objects for delete to authenticated
   using (bucket_id = 'files' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+-- ---------------------------------------------------------------------------
+-- 4. Keep-alive: a harmless function the scheduled GitHub workflow calls every
+--    few days so the free project never pauses. It only returns the time and
+--    can't see or change any data.
+-- ---------------------------------------------------------------------------
+create or replace function public.keepalive()
+returns timestamptz
+language sql
+stable
+set search_path = ''
+as $$ select now() $$;
+
+revoke all on function public.keepalive() from public;
+grant execute on function public.keepalive() to anon, authenticated;

@@ -39,7 +39,7 @@ How it works:
 - **Private.** The repo only contains the public Supabase URL and publishable key. Row-level security in [`supabase/schema.sql`](supabase/schema.sql) means only your signed-in account can read or write your data.
 - **Backups.** **Backup & data → Export backup** still downloads everything as one file, as an extra safety net.
 
-Free Supabase projects pause after about a week with no activity. If that happens, open the project in the Supabase dashboard and click **Restore**. Nothing is lost.
+Free Supabase projects pause after about a week with no activity. To stop that, [`.github/workflows/keepalive.yml`](.github/workflows/keepalive.yml) pings the project every 3 days. If it ever does pause, open the project in the Supabase dashboard and click **Restore**. Nothing is lost.
 
 Reminders show as browser notifications while Clouded is open in a tab.
 

@@ -1,0 +1,33 @@
+# Pings the Supabase project every 3 days so the free plan never pauses it
+# for inactivity. It calls public.keepalive(), which only returns the time and
+# can't read or change any data. Run it by hand from the Actions tab anytime.
+#
+# If a run fails, GitHub emails you, which usually means the project was
+# paused anyway: open it at supabase.com and click Restore.
+name: Keep Supabase awake
+
+on:
+  schedule:
+    - cron: "17 6 */3 * *" # 06:17 UTC every 3rd day
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the database
+        env:
+          # Public by design (same values as src/lib/supabase.ts).
+          SUPABASE_URL: https://ymgbeshlflzskwxaewuk.supabase.co
+          SUPABASE_KEY: sb_publishable_iZMHN-gBFa9IveSYPJoFYA_NAmoCBCz
+        run: |
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 20 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/keepalive" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+          echo
+          echo "Supabase is awake."
