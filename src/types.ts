@@ -77,7 +77,8 @@ export type Topic = {
   createdAt: string;
 };
 
-export type ResourceKind = "link" | "video" | "pdf";
+/** "note" is a plain written note: no URL, the text lives in `notes`. */
+export type ResourceKind = "link" | "video" | "pdf" | "note";
 export type ReadStatus = "toread" | "reading" | "done";
 export type Resource = {
   id: ID;

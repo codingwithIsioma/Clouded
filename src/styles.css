@@ -254,3 +254,4 @@ textarea.mono, input.mono { font-family: var(--mono); font-size: 13px; }
   input, textarea, select { font-size: 1rem !important; }
 }
 .signin-card button[type="submit"] { justify-content: center; padding-top: 8px; padding-bottom: 8px; }
+.note-snippet { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; }

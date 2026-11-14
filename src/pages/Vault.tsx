@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ExternalLink, FileText, Link2, Plus, Search, Trash2, Upload, Video } from "lucide-react";
+import { ExternalLink, FileText, Link2, NotebookPen, Plus, Search, StickyNote, Trash2, Upload, Video } from "lucide-react";
 import { uid, useStore } from "../store";
 import type { ID, ReadStatus, Resource, ResourceKind } from "../types";
 import { includesCI, splitTags } from "../lib/text";
@@ -12,7 +12,16 @@ export const STATUS: { value: ReadStatus; label: string }[] = [
   { value: "reading", label: "In progress" },
   { value: "done", label: "Done" },
 ];
-const KIND_ICON = { link: Link2, video: Video, pdf: FileText };
+const KIND_ICON = { link: Link2, video: Video, pdf: FileText, note: StickyNote };
+const KINDS: { value: ResourceKind; label: string }[] = [
+  { value: "link", label: "Link" },
+  { value: "video", label: "Video" },
+  { value: "pdf", label: "PDF" },
+  { value: "note", label: "Note" },
+];
+
+/** A note's title: what you typed, or its first line. */
+export const noteTitle = (text: string) => text.trim().split("\n")[0].replace(/^#+\s*/, "").slice(0, 80) || "Untitled note";
 
 const guessKind = (url: string): ResourceKind =>
   /youtu\.?be|vimeo|loom\.com|\.mp4/i.test(url) ? "video" : /\.pdf($|\?)/i.test(url) ? "pdf" : "link";
@@ -28,9 +37,15 @@ export function useOpenResource() {
     });
 }
 
-/** A link to a vault item. Opens web links normally and PDFs stored on this device from IndexedDB. */
+/** A link to a vault item. Opens web links normally, PDFs from storage, and notes in the vault. */
 export function ResLink({ r, className, title, children }: { r: Resource; className?: string; title?: string; children: ReactNode }) {
   const markOpened = useOpenResource();
+  if (r.kind === "note")
+    return (
+      <a className={className} title={title} href={`#/vault?id=${r.id}`} onClick={(e) => e.stopPropagation()}>
+        {children}
+      </a>
+    );
   return (
     <a
       className={className}
@@ -58,10 +73,11 @@ export default function Vault({ params }: { params: URLSearchParams }) {
   const [status, setStatus] = useState<ReadStatus | "all">("all");
   const [kind, setKind] = useState<ResourceKind | "all">("all");
   const [module, setModule] = useState("");
-  const [editing, setEditing] = useState<ID | "new" | null>(params.get("id") ?? (params.get("add") ? "new" : null));
+  const fromParams = () => params.get("id") ?? (params.get("add") === "note" ? "note" : params.get("add") ? "new" : null);
+  const [editing, setEditing] = useState<ID | "new" | "note" | null>(fromParams);
 
   useEffect(() => {
-    setEditing(params.get("id") ?? (params.get("add") ? "new" : null));
+    setEditing(fromParams());
     if (params.get("q")) setQ(params.get("q")!);
   }, [params]);
 
@@ -75,14 +91,19 @@ export default function Vault({ params }: { params: URLSearchParams }) {
 
   return (
     <>
-      <PageHead title="Resource Vault" sub="All the links, videos and docs you save, in one place.">
-        <button className="primary" onClick={() => setEditing("new")}>
-          <Plus size={14} /> Save resource
-        </button>
+      <PageHead title="Resource Vault" sub="All the links, videos, docs and notes you save, in one place.">
+        <div className="row" style={{ gap: 8 }}>
+          <button onClick={() => setEditing("note")}>
+            <NotebookPen size={14} /> New note
+          </button>
+          <button className="primary" onClick={() => setEditing("new")}>
+            <Plus size={14} /> Save resource
+          </button>
+        </div>
       </PageHead>
 
       <div className="row between">
-        <div className="search grow" style={{ maxWidth: 340 }}>
+        <div className="search" style={{ flex: "1 1 240px", maxWidth: 340 }}>
           <Search size={15} />
           <input placeholder="Search title, tags, notes" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
@@ -95,7 +116,7 @@ export default function Vault({ params }: { params: URLSearchParams }) {
               ))}
             </select>
           )}
-          <Segmented value={kind} onChange={setKind} options={[{ value: "all", label: "All" }, { value: "link", label: "Links" }, { value: "video", label: "Videos" }, { value: "pdf", label: "PDFs" }]} />
+          <Segmented value={kind} onChange={setKind} options={[{ value: "all", label: "All" }, { value: "link", label: "Links" }, { value: "video", label: "Videos" }, { value: "pdf", label: "PDFs" }, { value: "note", label: "Notes" }]} />
         </div>
       </div>
       <div style={{ marginTop: 10 }}>
@@ -103,7 +124,7 @@ export default function Vault({ params }: { params: URLSearchParams }) {
       </div>
 
       <div className="card flush list" style={{ marginTop: 14 }}>
-        {list.length === 0 && <Empty>{state.resources.length ? "Nothing matches." : "Your vault is empty. Save the next useful link, video or PDF here."}</Empty>}
+        {list.length === 0 && <Empty>{state.resources.length ? "Nothing matches." : "Your vault is empty. Save the next useful link, video, PDF or note here."}</Empty>}
         {list.map((r) => {
           const Icon = KIND_ICON[r.kind];
           return (
@@ -111,30 +132,33 @@ export default function Vault({ params }: { params: URLSearchParams }) {
               <Icon size={16} className="faint" style={{ marginTop: 3, flex: "none" }} />
               <div className="grow">
                 <div className="item-title">{r.title}</div>
+                {r.kind === "note" && r.notes.trim() !== r.title && <div className="note-snippet small muted">{r.notes.trim().split("\n").slice(r.notes.trim().split("\n")[0].trim() === r.title ? 1 : 0).join(" ")}</div>}
                 <div className="item-meta">
-                  <span className={`pill ${r.status}`}>{STATUS.find((s) => s.value === r.status)!.label}</span>
+                  {r.kind !== "note" && <span className={`pill ${r.status}`}>{STATUS.find((s) => s.value === r.status)!.label}</span>}
                   {r.module && <span>{r.module}</span>}
                   <Tags tags={r.tags} onClick={setQ} />
-                  {r.notes && <span>· notes</span>}
+                  {r.kind !== "note" && r.notes && <span>· notes</span>}
                   <span>{timeAgo(r.createdAt)}</span>
                 </div>
               </div>
-              <ResLink r={r} className="btn ghost sm" title="Open">
-                <ExternalLink size={14} />
-              </ResLink>
+              {r.kind !== "note" && (
+                <ResLink r={r} className="btn ghost sm" title="Open">
+                  <ExternalLink size={14} />
+                </ResLink>
+              )}
             </div>
           );
         })}
       </div>
 
-      {editing && (editing === "new" || state.resources.some((r) => r.id === editing)) && (
+      {editing && (editing === "new" || editing === "note" || state.resources.some((r) => r.id === editing)) && (
         <ResourceEditor id={editing} defaultTags={params.get("tags") ?? ""} onClose={() => (setEditing(null), (params.get("id") || params.get("add")) && go("vault"))} />
       )}
     </>
   );
 }
 
-function ResourceEditor({ id, defaultTags, onClose }: { id: ID | "new"; defaultTags: string; onClose: () => void }) {
+function ResourceEditor({ id, defaultTags, onClose }: { id: ID | "new" | "note"; defaultTags: string; onClose: () => void }) {
   const { state, update } = useStore();
   const existing = state.resources.find((r) => r.id === id);
   const [r, setR] = useState<Resource>(
@@ -143,10 +167,10 @@ function ResourceEditor({ id, defaultTags, onClose }: { id: ID | "new"; defaultT
         id: uid(),
         title: "",
         url: "",
-        kind: "link",
+        kind: id === "note" ? "note" : "link",
         tags: [],
         module: "",
-        status: "toread",
+        status: id === "note" ? "done" : "toread",
         notes: "",
         opened: false,
         links: [],
@@ -172,8 +196,15 @@ function ResourceEditor({ id, defaultTags, onClose }: { id: ID | "new"; defaultT
     }
   };
 
+  const isNote = r.kind === "note";
+  const canSave = isNote ? !!r.notes.trim() || !!r.title.trim() : !!r.url.trim();
+
   const save = () => {
-    const entry = { ...r, title: r.title.trim() || r.url, tags: splitTags(tags), opened: r.opened || !!existing?.opened };
+    const entry: Resource = isNote
+      ? { ...r, url: "", title: r.title.trim() || noteTitle(r.notes), tags: splitTags(tags), status: "done", opened: true }
+      : { ...r, title: r.title.trim() || r.url, tags: splitTags(tags), opened: r.opened || !!existing?.opened };
+    // A PDF turned into a note no longer needs its file.
+    if (isNote && existing && isLocalUrl(existing.url)) deleteFile(existing.url.slice(LOCAL_PREFIX.length)).catch(() => {});
     update((s) => {
       const i = s.resources.findIndex((x) => x.id === entry.id);
       if (i >= 0) s.resources[i] = entry;
@@ -192,7 +223,19 @@ function ResourceEditor({ id, defaultTags, onClose }: { id: ID | "new"; defaultT
   const linkLabel = (l: Resource["links"][number]) => [...stepOptions, ...topicOptions].find((o) => o.key === linkKey(l))?.label ?? "(removed)";
 
   return (
-    <Modal title={existing ? "Resource" : "Save a resource"} onClose={onClose}>
+    <Modal title={existing ? (isNote ? "Note" : "Resource") : isNote ? "New note" : "Save a resource"} onClose={onClose}>
+      <Segmented value={r.kind} onChange={(kind) => setR({ ...r, kind, status: kind === "note" ? "done" : r.kind === "note" ? "toread" : r.status })} options={KINDS} />
+      {isNote ? (
+        <>
+          <Field label="Title (optional)">
+            <input value={r.title} onChange={(e) => setR({ ...r, title: e.target.value })} placeholder="Defaults to the note's first line" />
+          </Field>
+          <Field label="Note">
+            <textarea autoFocus={!existing} value={r.notes} onChange={(e) => setR({ ...r, notes: e.target.value })} placeholder="Write anything: a command you keep forgetting, a tip from class, a reminder…" style={{ minHeight: 200 }} />
+          </Field>
+        </>
+      ) : (
+      <>
       <Field label="URL">
         <div className="row" style={{ flexWrap: "nowrap" }}>
           {isLocalUrl(r.url) ? (
@@ -209,10 +252,9 @@ function ResourceEditor({ id, defaultTags, onClose }: { id: ID | "new"; defaultT
       <Field label="Title">
         <input value={r.title} onChange={(e) => setR({ ...r, title: e.target.value })} />
       </Field>
+      </>
+      )}
       <div className="grid2">
-        <Field label="Type">
-          <Segmented value={r.kind} onChange={(kind) => setR({ ...r, kind })} options={[{ value: "link", label: "Link" }, { value: "video", label: "Video" }, { value: "pdf", label: "PDF" }]} />
-        </Field>
         <Field label="Course module">
           <input list="modules" value={r.module} onChange={(e) => setR({ ...r, module: e.target.value })} placeholder="e.g. Cloud Engineering — Month 4" />
           <datalist id="modules">
@@ -221,16 +263,20 @@ function ResourceEditor({ id, defaultTags, onClose }: { id: ID | "new"; defaultT
             ))}
           </datalist>
         </Field>
+        <Field label="Tags">
+          <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Kubernetes, networking" />
+        </Field>
       </div>
-      <Field label="Tags">
-        <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Kubernetes, networking" />
-      </Field>
-      <Field label="Status">
-        <Segmented value={r.status} onChange={(status) => setR({ ...r, status })} options={STATUS} />
-      </Field>
-      <Field label="Your notes">
-        <textarea value={r.notes} onChange={(e) => setR({ ...r, notes: e.target.value })} />
-      </Field>
+      {!isNote && (
+        <>
+          <Field label="Status">
+            <Segmented value={r.status} onChange={(status) => setR({ ...r, status })} options={STATUS} />
+          </Field>
+          <Field label="Your notes">
+            <textarea value={r.notes} onChange={(e) => setR({ ...r, notes: e.target.value })} />
+          </Field>
+        </>
+      )}
       <Field label="Linked to">
         <div className="stack" style={{ gap: 6 }}>
           {r.links.map((l, i) => (
@@ -275,7 +321,7 @@ function ResourceEditor({ id, defaultTags, onClose }: { id: ID | "new"; defaultT
           <button
             className="ghost danger"
             onClick={() => {
-              if (confirm("Delete this resource?")) {
+              if (confirm(isNote ? "Delete this note?" : "Delete this resource?")) {
                 update((s) => void (s.resources = s.resources.filter((x) => x.id !== r.id)));
                 if (isLocalUrl(r.url)) deleteFile(r.url.slice(LOCAL_PREFIX.length)).catch(() => {});
                 onClose();
@@ -288,12 +334,12 @@ function ResourceEditor({ id, defaultTags, onClose }: { id: ID | "new"; defaultT
           <span />
         )}
         <div className="row">
-          {existing && r.url && (
+          {existing && !isNote && r.url && (
             <ResLink r={r} className="btn">
               <ExternalLink size={14} /> Open
             </ResLink>
           )}
-          <button className="primary" onClick={save} disabled={!r.url.trim()}>
+          <button className="primary" onClick={save} disabled={!canSave}>
             Save
           </button>
         </div>

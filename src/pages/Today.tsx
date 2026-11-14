@@ -12,7 +12,7 @@ import { CONF, topicsToReview } from "./Explain";
 import { ResLink } from "./Vault";
 import { backupOverdue } from "./Data";
 
-type Hit = { kind: "Deadline" | "Step" | "Error" | "Resource" | "Topic"; title: string; sub: string; go: () => void };
+type Hit = { kind: "Deadline" | "Step" | "Error" | "Resource" | "Note" | "Topic"; title: string; sub: string; go: () => void };
 
 function searchAll(s: State, q: string): Hit[] {
   const hits: Hit[] = [];
@@ -27,7 +27,7 @@ function searchAll(s: State, q: string): Hit[] {
   for (const e of s.errors)
     if (m(e.title, e.message, e.cause, e.fix, ...e.tags)) hits.push({ kind: "Error", title: e.title, sub: `${e.status} · ${e.tags.join(", ")}`, go: () => go("errors", { id: e.id }) });
   for (const r of s.resources)
-    if (m(r.title, r.url, r.notes, r.module, ...r.tags)) hits.push({ kind: "Resource", title: r.title, sub: [r.module, ...r.tags].filter(Boolean).join(" · "), go: () => go("vault", { id: r.id }) });
+    if (m(r.title, r.url, r.notes, r.module, ...r.tags)) hits.push({ kind: r.kind === "note" ? "Note" : "Resource", title: r.title, sub: [r.module, ...r.tags].filter(Boolean).join(" · "), go: () => go("vault", { id: r.id }) });
   for (const t of s.topics)
     if (m(t.name, ...t.explanations.map((e) => e.text))) hits.push({ kind: "Topic", title: t.name, sub: CONF.find((c) => c.value === t.confidence)!.label, go: () => go("explain", { topic: t.name }) });
   return hits.slice(0, 30);
@@ -62,7 +62,7 @@ export default function Today() {
   const ch = challengeFor(dayKey());
   const chDone = !!state.days[dayKey()]?.challenge;
   const topic = topicsToReview(state)[0];
-  const unread = [...state.resources].filter((r) => !r.opened && r.status === "toread").sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+  const unread = [...state.resources].filter((r) => r.kind !== "note" && !r.opened && r.status === "toread").sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
   const st = streak(state);
 
   return (

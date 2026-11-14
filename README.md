@@ -15,7 +15,7 @@ A personal study app for cloud engineering students. It runs in your browser, ho
   - Steps say what to work on, never how to solve it.
 - **Error Journal:** log errors with the cause, fix, tags, status and the assignment they came from. Paste a new error to see whether you've hit it before.
 - **Explain-It-Back:** explain a topic in writing or by voice, then check yourself against six points. Anything you missed shows up next time, along with a confidence rating and review suggestions.
-- **Resource Vault:** links, videos and PDFs with tags, module, reading status, notes, and links to assignment steps or topics.
+- **Resource Vault:** links, videos, PDFs and plain notes, with tags, module, reading status, notes, and links to assignment steps or topics.
 - **CommandCards:** daily Linux, Docker, kubectl, Terraform and Git flashcards with spaced repetition, plus a daily challenge, a streak and per-topic progress.
 
 ## AI (optional, free)
